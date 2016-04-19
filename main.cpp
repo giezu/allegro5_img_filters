@@ -27,9 +27,22 @@ int main(int argc, char const *argv[])
 	al_init_image_addon();
 	al_init_primitives_addon();
 
-	ALLEGRO_BITMAP*	source	=	al_load_bitmap(argv[1]);
-	ALLEGRO_BITMAP*	output	=	filters::glitch(source, 50);
-	al_save_bitmap("glitch.jpg", output);
+	std::chrono::system_clock::time_point	start_timer;
+	std::chrono::system_clock::time_point	end_timer;
+
+	ALLEGRO_BITMAP*	source		=	al_load_bitmap(argv[1]);
+	start_timer	=	std::chrono::high_resolution_clock::now();
+	ALLEGRO_BITMAP*	output		=	filters::gaussian_blur_optimized(source, 2);
+	end_timer	=	std::chrono::high_resolution_clock::now();
+	std::cout	<<	std::chrono::duration_cast<std::chrono::seconds>(end_timer - start_timer).count()	<<	std::endl;
+
+	start_timer	=	std::chrono::high_resolution_clock::now();
+	ALLEGRO_BITMAP*	gauss_old	=	filters::gaussian_blur(source, 2);
+	end_timer	=	std::chrono::high_resolution_clock::now();
+	std::cout	<<	std::chrono::duration_cast<std::chrono::seconds>(end_timer - start_timer).count()	<<	std::endl;
+	
+	al_save_bitmap("gauss.jpg", output);
+	al_save_bitmap("gauss_old.jpg", gauss_old);
 
 	return 0;
 }

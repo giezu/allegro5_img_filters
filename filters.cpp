@@ -501,6 +501,152 @@ filters::gaussian_blur(ALLEGRO_BITMAP* source, unsigned int n)
 	return output;
 }
 
+ALLEGRO_BITMAP*
+filters::gaussian_blur_optimized(ALLEGRO_BITMAP* source, unsigned int n)
+{
+	// TODO
+	// dodać odejmowanie i dodawanie pixeli na krawędzi
+	if (!n) return source;
+	unsigned int		img_w		=	al_get_bitmap_width(source);
+	unsigned int		img_h		=	al_get_bitmap_height(source);
+	const	unsigned int	matrix_w	=	7;
+	const	unsigned int	matrix_h	=	1;
+	int		r	=	0;
+	int		g	=	0;
+	int		b	=	0;
+	ALLEGRO_COLOR		pixels[matrix_h][matrix_w];
+	unsigned char		results[3];
+	unsigned char		tmp_channels[3][matrix_h][matrix_w];
+	ALLEGRO_BITMAP*		output	=	al_create_bitmap(img_w, img_h);
+	al_set_target_bitmap(output);
+	al_clear_to_color(al_map_rgb(0,0,0));
+	int					kernel	=	0;
+/*
+	int				filter_matrix[matrix_h][matrix_w]	=
+	{ 
+		{0,		0,		0,		5,		0,		0,		0},
+		{0,		5,		18,		32,		18,		5,		0},
+		{0,		18,		64,		100,	64,		18,		0},
+		{5,		32,		100,	100,	100,	32,		5},
+		{0,		18,		64,		100,	64,		18,		0},
+		{0,		5,		18,		32,		18,		5,		0},
+		{0,		0,		0,		5,		0,		0,		0}
+	};
+*/
+	int	filter_matrix[matrix_h][matrix_w]	=
+	{
+		{5,		32,		100,	100,	100,	32,		5}		
+	};
+
+	for (unsigned int y = 0; y < matrix_h; ++y)
+	
+		for (unsigned int x = 0; x < matrix_w; ++x)
+		
+			kernel	+=	filter_matrix[y][x];
+
+	float				factor	=	1.0/kernel;
+	al_lock_bitmap(source, al_get_bitmap_format(source), ALLEGRO_LOCK_READONLY);
+	al_lock_bitmap(output, al_get_bitmap_format(output), ALLEGRO_LOCK_WRITEONLY);
+
+	// first pass
+
+	for (unsigned int i = 0; i < n; ++i)
+	{
+		for (unsigned int y = 0; y < img_h; ++y)
+		{
+			for (unsigned int x = 0; x < img_w; ++x)
+			{
+				al_set_target_bitmap(source);
+				for (unsigned int j = 0; j < matrix_w; ++j)
+				{
+					pixels[0][j]	=	al_get_pixel(source, (img_w + x + j - (matrix_w / 2)) % img_w, (img_h + y - (matrix_h / 2)) % img_h);
+				}
+				
+				for (unsigned int j = 0; j < matrix_w; ++j)
+				{
+					al_unmap_rgb(	pixels[0][j],
+									&tmp_channels[0][0][j],
+									&tmp_channels[1][0][j],
+									&tmp_channels[2][0][j]);
+				}
+
+				for (unsigned int i = 0; i < matrix_h; ++i)
+				{
+					for (unsigned int j = 0; j < matrix_w; ++j)
+					{
+						r	+=	round(tmp_channels[0][i][j]	*	filter_matrix[i][j]);
+						g	+=	round(tmp_channels[1][i][j]	*	filter_matrix[i][j]);
+						b	+=	round(tmp_channels[2][i][j]	*	filter_matrix[i][j]);
+					}
+				}
+
+				results[0]	=	std::min(std::max(int(factor * r), 0), 255);
+				results[1]	=	std::min(std::max(int(factor * g), 0), 255);
+				results[2]	=	std::min(std::max(int(factor * b), 0), 255);
+
+				al_set_target_bitmap(output);
+				al_put_pixel(x, y, al_map_rgb(results[0], results[1], results[2]));
+				r			= 	g			=	b			=	0;
+				results[0]	=	results[1]	=	results[2]	=	0;
+			}
+		}
+		source	=	output;
+	}
+
+	for (unsigned int i = 0; i < n; ++i)
+	{
+		for (unsigned int x = 0; x < img_w; ++x)
+		{
+			for (unsigned int y = 0; y < img_h; ++y)
+			{
+				al_set_target_bitmap(source);
+				for (unsigned int i = 0; i < matrix_h; ++i)
+				{
+					for (unsigned int j = 0; j < matrix_w; ++j)
+					{
+						pixels[i][j]	=	al_get_pixel(source, (img_w + x + i - (matrix_h / 2)) % img_w, (img_h + y + j - (matrix_w / 2)) % img_h);
+					}
+				}
+				
+				for (unsigned int i = 0; i < matrix_h; ++i)
+				{
+					for (unsigned int j = 0; j < matrix_w; ++j)
+					{
+						al_unmap_rgb(	pixels[i][j],
+										&tmp_channels[0][i][j],
+										&tmp_channels[1][i][j],
+										&tmp_channels[2][i][j]);
+					}
+				}
+
+				for (unsigned int i = 0; i < matrix_h; ++i)
+				{
+					for (unsigned int j = 0; j < matrix_w; ++j)
+					{
+						r	+=	round(tmp_channels[0][i][j]	*	filter_matrix[i][j]);
+						g	+=	round(tmp_channels[1][i][j]	*	filter_matrix[i][j]);
+						b	+=	round(tmp_channels[2][i][j]	*	filter_matrix[i][j]);
+					}
+				}
+
+				results[0]	=	std::min(std::max(int(factor * r), 0), 255);
+				results[1]	=	std::min(std::max(int(factor * g), 0), 255);
+				results[2]	=	std::min(std::max(int(factor * b), 0), 255);
+
+				al_set_target_bitmap(output);
+				al_put_pixel(x, y, al_map_rgb(results[0], results[1], results[2]));
+				r			= 	g			=	b			=	0;
+				results[0]	=	results[1]	=	results[2]	=	0;
+			}
+		}
+		source	=	output;
+	}
+
+	al_unlock_bitmap(source);
+	al_unlock_bitmap(output);
+	return output;
+}
+
 // działa
 ALLEGRO_BITMAP*
 filters::gaussian_blur_sampling(ALLEGRO_BITMAP* source, unsigned int n, unsigned int samples)
