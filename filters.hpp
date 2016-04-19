@@ -125,7 +125,7 @@ namespace filters
  	 *	ARGS:	ALLEGRO_BITMAP*	, 	[int]			,	[int]
  	 *	RET:	ALLEGRO_BITMAP*
  	 *	Gaussian blur using convolution matrix, weights build with Gaussian curve.
- 	 *	Optimized by sampling image. Returns blurred image.
+ 	 *	Optimized with two-pass filter. Returns blurred image.
 	 */
 	ALLEGRO_BITMAP*
 	gaussian_blur_sampling(ALLEGRO_BITMAP* source, unsigned int n = 1, unsigned int samples = 2);
